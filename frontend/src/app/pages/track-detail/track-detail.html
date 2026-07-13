@@ -25,7 +25,7 @@
       </div>
       <div>
         <dt>Release date</dt>
-        <dd>{{ t.releaseDate }}</dd>
+        <dd>{{ t.releaseDate | date: 'mediumDate' }}</dd>
       </div>
       <div class="full">
         <dt>ISRC</dt>
@@ -49,7 +49,7 @@
             <tr>
               <td>{{ d.dspName }}</td>
               <td><span class="badge" [class]="d.status">{{ d.status }}</span></td>
-              <td class="mono">{{ d.submittedAt }}</td>
+              <td class="mono">{{ d.submittedAt | date: 'mediumDate' }}</td>
             </tr>
           }
         </tbody>
