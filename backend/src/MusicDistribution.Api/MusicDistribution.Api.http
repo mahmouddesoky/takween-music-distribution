@@ -1,0 +1,6 @@
+@MusicDistribution.Api_HostAddress = http://localhost:5003
+
+GET {{MusicDistribution.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
