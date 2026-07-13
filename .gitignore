@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------
+# .NET
+# ---------------------------------------------------------------
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.rsuser
+
+## Local SQLite database (re-seeded on first run)
+*.db
+*.db-shm
+*.db-wal
+
+# ---------------------------------------------------------------
+# Node / Angular
+# ---------------------------------------------------------------
+**/node_modules/
+**/dist/
+**/tmp/
+**/out-tsc/
+**/.angular/cache/
+**/coverage/
+npm-debug.log*
+yarn-error.log*
+
+# ---------------------------------------------------------------
+# IDEs & editors
+# ---------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+*.sublime-workspace
+
+# ---------------------------------------------------------------
+# OS files
+# ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------
+# Secrets / environment (never commit)
+# ---------------------------------------------------------------
+*.env
+appsettings.*.Secrets.json
+secrets.json
