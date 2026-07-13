@@ -1,0 +1,15 @@
+<nav class="topbar">
+  <a routerLink="/" class="brand">🎵 Music Distribution</a>
+  <div class="nav-actions">
+    @if (isLoggedIn()) {
+      <span class="auth-badge admin">Admin</span>
+      <button type="button" class="link-btn" (click)="logout()">Log out</button>
+    } @else {
+      <a routerLink="/login" class="link-btn">Admin login</a>
+    }
+  </div>
+</nav>
+
+<main class="container">
+  <router-outlet />
+</main>

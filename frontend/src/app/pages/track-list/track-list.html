@@ -1,0 +1,52 @@
+<div class="page">
+  <h1>Tracks</h1>
+  <p class="subtitle">Browse and distribute music across streaming platforms.</p>
+
+  <div class="filters">
+    @for (opt of statusOptions; track opt.value) {
+      <button
+        type="button"
+        class="filter-btn"
+        [class.active]="selectedStatus() === opt.value"
+        (click)="onStatusChange(opt.value)"
+      >
+        {{ opt.label }}
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="loading">Loading tracks…</p>
+  }
+
+  @if (error()) {
+    <p class="error-msg">{{ error() }}</p>
+  }
+
+  @if (!loading() && !error()) {
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Artist</th>
+          <th>Genre</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (track of tracks(); track track.id) {
+          <tr [routerLink]="['/tracks', track.id]" class="row">
+            <td>{{ track.title }}</td>
+            <td>{{ track.artistName || '—' }}</td>
+            <td>{{ track.genre }}</td>
+            <td><span class="badge" [class]="track.status">{{ track.status }}</span></td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty">No tracks match this filter.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

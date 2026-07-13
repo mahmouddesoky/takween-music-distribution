@@ -1,0 +1,39 @@
+<div class="page">
+  <div class="form-card">
+    <h1>Admin login</h1>
+    <p class="subtitle" style="margin-bottom:18px">Log in to create and distribute tracks.</p>
+
+    <div class="form-field">
+      <label for="username">Username</label>
+      <input
+        id="username"
+        type="text"
+        [value]="username()"
+        (input)="username.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+        (keyup.enter)="login()"
+      />
+    </div>
+
+    <button class="btn" [disabled]="loading()" (click)="login()">
+      {{ loading() ? 'Signing in…' : 'Sign in' }}
+    </button>
+
+    @if (error()) {
+      <p class="error-msg">{{ error() }}</p>
+    }
+
+    <p class="subtitle" style="margin-top:16px; font-size:0.8rem">
+      Default test account: <strong>admin</strong> / <strong>admin123</strong>
+    </p>
+  </div>
+</div>

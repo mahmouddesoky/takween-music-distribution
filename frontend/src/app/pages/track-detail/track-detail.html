@@ -1,0 +1,85 @@
+<div class="page">
+  <a routerLink="/" class="back">← Back to tracks</a>
+
+  @if (loading()) {
+    <p class="loading">Loading track…</p>
+  }
+
+  @if (error()) {
+    <p class="error-msg">{{ error() }}</p>
+  }
+
+  @if (track(); as t) {
+    <div class="header">
+      <div>
+        <h1>{{ t.title }}</h1>
+        <p class="artist">{{ t.artistName || '—' }}</p>
+      </div>
+      <span class="badge" [class]="t.status">{{ t.status }}</span>
+    </div>
+
+    <dl class="meta">
+      <div>
+        <dt>Genre</dt>
+        <dd>{{ t.genre }}</dd>
+      </div>
+      <div>
+        <dt>Release date</dt>
+        <dd>{{ t.releaseDate }}</dd>
+      </div>
+      <div class="full">
+        <dt>ISRC</dt>
+        <dd class="mono">{{ t.isrc }}</dd>
+      </div>
+    </dl>
+
+    <h2>DSP distribution</h2>
+
+    @if (t.distributions.length > 0) {
+      <table>
+        <thead>
+          <tr>
+            <th>DSP</th>
+            <th>Status</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of t.distributions; track d.dspId) {
+            <tr>
+              <td>{{ d.dspName }}</td>
+              <td><span class="badge" [class]="d.status">{{ d.status }}</span></td>
+              <td class="mono">{{ d.submittedAt }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="empty">Not yet submitted to any DSPs.</p>
+    }
+
+    @if (isLoggedIn()) {
+      <h2>Distribute to DSPs</h2>
+      @if (availableDsps().length > 0) {
+        <div class="dsp-pick">
+          @for (dsp of availableDsps(); track dsp.id) {
+            <span
+              class="dsp-chip"
+              [class.selected]="isDspSelected(dsp.id)"
+              (click)="toggleDsp(dsp.id)"
+            >
+              {{ dsp.name }}
+            </span>
+          }
+        </div>
+        <button class="btn" [disabled]="selectedDspIds().length === 0 || distributing()" (click)="distribute()">
+          {{ distributing() ? 'Submitting…' : 'Submit to selected' }}
+        </button>
+        @if (distributeMsg()) { <p class="success-msg">{{ distributeMsg() }}</p> }
+        @if (distributeErr()) { <p class="error-msg">{{ distributeErr() }}</p> }
+      } @else {
+        <p class="empty">This track has been submitted to all available DSPs.</p>
+      }
+    }
+  }
+</div>
