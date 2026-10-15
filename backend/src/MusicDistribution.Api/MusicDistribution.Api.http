@@ -1,6 +1,50 @@
-@MusicDistribution.Api_HostAddress = http://localhost:5003
+@baseUrl = http://localhost:5080
 
-GET {{MusicDistribution.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Login (copy the token into @token below)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "admin123" }
 
 ###
+@token = paste-token-here
+
+### List artists
+GET {{baseUrl}}/api/artists
+
+### Create artist (JWT)
+POST {{baseUrl}}/api/artists
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Cairokee", "email": "booking@cairokee.com", "country": "Egypt" }
+
+### List DSPs
+GET {{baseUrl}}/api/dsps
+
+### List tracks with filters
+GET {{baseUrl}}/api/tracks?artistId=1&genre=pop&status=Submitted
+
+### Track detail with DSP distribution statuses
+GET {{baseUrl}}/api/tracks/3
+
+### Create track (JWT)
+POST {{baseUrl}}/api/tracks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "title": "Ya Bakht", "artistId": 1, "isrc": "EGABC1250011", "releaseDate": "2025-09-01", "genre": "Pop" }
+
+### Distribute a track to DSPs (JWT)
+POST {{baseUrl}}/api/tracks/1/distribute
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "dspIds": [1, 3] }
+
+### Update track status (JWT)
+PATCH {{baseUrl}}/api/tracks/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "status": "Distributed" }

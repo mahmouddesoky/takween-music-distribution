@@ -22,5 +22,8 @@ public class TrackConfiguration : IEntityTypeConfiguration<Track>
             .WithOne(d => d.Track)
             .HasForeignKey(d => d.TrackId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Distributions is a read-only view over the private _distributions list.
+        builder.Navigation(t => t.Distributions).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

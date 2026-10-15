@@ -1,50 +1,42 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MusicDistribution.Application.DTOs;
-using MusicDistribution.Application.Interfaces;
-using MusicDistribution.Domain.Enums;
+using MusicDistribution.Application.Abstractions.Authentication;
+using MusicDistribution.Application.Tracks;
 
 namespace MusicDistribution.Api.Controllers;
 
+/// <summary>
+/// HTTP adapter only: binds the request, calls the use case, picks the status code.
+/// Validation, business rules and persistence all live behind <see cref="ITrackService"/>.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class TracksController(
-    ITrackService trackService,
-    IDistributionService distributionService) : ControllerBase
+[Produces("application/json")]
+public class TracksController(ITrackService trackService) : ControllerBase
 {
+    /// <summary>List tracks, optionally filtered by artistId, genre and status.</summary>
     [HttpGet]
     [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<TrackSummaryResponse>>> GetAll(
-        [FromQuery] int? artistId,
-        [FromQuery] string? genre,
-        [FromQuery] string? status,
-        CancellationToken cancellationToken)
-    {
-        TrackStatus? parsedStatus = null;
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            if (!Enum.TryParse<TrackStatus>(status, true, out var trackStatus))
-            {
-                return BadRequest(new { message = "Status must be Draft, Submitted, or Distributed." });
-            }
+        [FromQuery] TrackFilterRequest filter,
+        CancellationToken cancellationToken) =>
+        Ok(await trackService.GetFilteredAsync(filter, cancellationToken));
 
-            parsedStatus = trackStatus;
-        }
-
-        var tracks = await trackService.GetFilteredAsync(artistId, genre, parsedStatus, cancellationToken);
-        return Ok(tracks);
-    }
-
+    /// <summary>Track details including its DSP distribution statuses.</summary>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
-    public async Task<ActionResult<TrackDetailResponse>> GetById(int id, CancellationToken cancellationToken)
-    {
-        var track = await trackService.GetByIdAsync(id, cancellationToken);
-        return Ok(track);
-    }
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrackDetailResponse>> GetById(int id, CancellationToken cancellationToken) =>
+        Ok(await trackService.GetByIdAsync(id, cancellationToken));
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = Roles.Admin)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TrackDetailResponse>> Create(
         [FromBody] CreateTrackRequest request,
         CancellationToken cancellationToken)
@@ -54,24 +46,27 @@ public class TracksController(
     }
 
     [HttpPatch("{id:int}/status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = Roles.Admin)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TrackDetailResponse>> UpdateStatus(
         int id,
         [FromBody] UpdateTrackStatusRequest request,
-        CancellationToken cancellationToken)
-    {
-        var track = await trackService.UpdateStatusAsync(id, request, cancellationToken);
-        return Ok(track);
-    }
+        CancellationToken cancellationToken) =>
+        Ok(await trackService.UpdateStatusAsync(id, request, cancellationToken));
 
+    /// <summary>Submit a track to one or more DSPs.</summary>
     [HttpPost("{id:int}/distribute")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = Roles.Admin)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TrackDetailResponse>> Distribute(
         int id,
         [FromBody] DistributeTrackRequest request,
-        CancellationToken cancellationToken)
-    {
-        var track = await distributionService.DistributeAsync(id, request, cancellationToken);
-        return Ok(track);
-    }
+        CancellationToken cancellationToken) =>
+        Ok(await trackService.DistributeAsync(id, request, cancellationToken));
 }

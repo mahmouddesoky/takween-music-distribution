@@ -1,6 +1,5 @@
 using FluentValidation.TestHelper;
-using MusicDistribution.Application.DTOs;
-using MusicDistribution.Application.Validators;
+using MusicDistribution.Application.Tracks;
 
 namespace MusicDistribution.Tests.Validators;
 
@@ -13,8 +12,7 @@ public class CreateTrackRequestValidatorTests
         ArtistId: 1,
         Isrc: "USRC12345678",
         ReleaseDate: new DateOnly(2025, 1, 1),
-        Genre: "Pop",
-        Status: "Draft");
+        Genre: "Pop");
 
     [Fact]
     public void Accepts_a_well_formed_request()
@@ -43,18 +41,11 @@ public class CreateTrackRequestValidatorTests
     [InlineData("BAD")]
     [InlineData("TOOLONG1234567")]
     [InlineData("12RC1234567")]
+    [InlineData("USRC1234567")]   // 11 chars: one digit short of a real ISRC
     public void Rejects_malformed_isrc(string isrc)
     {
         var request = ValidRequest() with { Isrc = isrc };
         var result = _validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Isrc);
-    }
-
-    [Fact]
-    public void Rejects_invalid_status_string()
-    {
-        var request = ValidRequest() with { Status = "Published" };
-        var result = _validator.TestValidate(request);
-        result.ShouldHaveValidationErrorFor(x => x.Status);
     }
 }

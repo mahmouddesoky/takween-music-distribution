@@ -1,6 +1,6 @@
 using FluentValidation.TestHelper;
-using MusicDistribution.Application.DTOs;
-using MusicDistribution.Application.Validators;
+using MusicDistribution.Application.Artists;
+using MusicDistribution.Application.Tracks;
 
 namespace MusicDistribution.Tests.Validators;
 
