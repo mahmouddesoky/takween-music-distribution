@@ -1,11 +1,12 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { catchError, throwError } from 'rxjs';
 
 import { AuthService } from '../services/auth.service';
 
 /**
- * Attaches the JWT bearer token to every outgoing request that targets our API.
- * The login endpoint itself is skipped (it has no token yet).
+ * Attaches the JWT bearer token to every outgoing request that targets our API,
+ * and drops the session when the API answers 401 (token expired or revoked).
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
@@ -15,5 +16,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
   }
 
-  return next(req);
+  return next(req).pipe(
+    catchError((error: unknown) => {
+      if (error instanceof HttpErrorResponse && error.status === 401 && !req.url.endsWith('/auth/login')) {
+        auth.logout();
+      }
+      return throwError(() => error);
+    })
+  );
 };

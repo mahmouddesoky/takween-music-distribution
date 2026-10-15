@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
@@ -7,15 +7,20 @@ import { LoginRequest, LoginResponse } from '../models/track.model';
 /**
  * Holds the JWT in localStorage and exposes a reactive `isLoggedIn` signal so
  * templates can show/hide admin controls without subscribing manually.
+ * An expired token counts as logged out.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly http = inject(HttpClient);
   private readonly tokenKey = 'md_token';
   private readonly baseUrl = '/api/auth';
 
-  readonly isLoggedIn = signal(this.hasToken());
+  readonly isLoggedIn = signal(false);
 
-  constructor(private http: HttpClient) {}
+  constructor() {
+    // Runs after the signal exists: an expired/malformed stored token is cleared here.
+    this.isLoggedIn.set(this.getToken() !== null);
+  }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http
@@ -28,8 +33,16 @@ export class AuthService {
     this.isLoggedIn.set(false);
   }
 
+  /** Returns the stored token, or null (and clears it) when it is missing or expired. */
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    const token = localStorage.getItem(this.tokenKey);
+    if (!token) return null;
+
+    if (this.isExpired(token)) {
+      this.logout();
+      return null;
+    }
+    return token;
   }
 
   private setToken(token: string): void {
@@ -37,7 +50,13 @@ export class AuthService {
     this.isLoggedIn.set(true);
   }
 
-  private hasToken(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
+  /** Reads the `exp` claim (seconds since epoch). Malformed tokens are treated as expired. */
+  private isExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now();
+    } catch {
+      return true;
+    }
   }
 }

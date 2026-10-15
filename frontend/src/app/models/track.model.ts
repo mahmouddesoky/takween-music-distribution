@@ -1,6 +1,19 @@
 export type TrackStatus = 'Draft' | 'Submitted' | 'Distributed';
 export type DistributionStatus = 'Pending' | 'Live' | 'Rejected';
 
+export interface Dsp {
+  id: number;
+  name: string;
+}
+
+/** RFC 7807 error body returned by the API. */
+export interface ProblemDetails {
+  title?: string;
+  detail?: string;
+  status?: number;
+  errors?: Record<string, string[]>;
+}
+
 export interface Artist {
   id: number;
   name: string;

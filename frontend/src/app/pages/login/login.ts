@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
+import { problemMessage } from '../../utils/problem-details';
 
 @Component({
   selector: 'app-login',
@@ -14,8 +15,8 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly username = signal('admin');
-  readonly password = signal('admin123');
+  readonly username = signal('');
+  readonly password = signal('');
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
@@ -28,9 +29,9 @@ export class LoginComponent {
         this.loading.set(false);
         this.router.navigateByUrl('/');
       },
-      error: () => {
+      error: err => {
         this.loading.set(false);
-        this.error.set('Invalid credentials. Try admin / admin123.');
+        this.error.set(problemMessage(err, 'Login failed. Please try again.'));
       },
     });
   }

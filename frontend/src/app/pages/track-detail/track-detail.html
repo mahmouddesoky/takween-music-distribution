@@ -60,16 +60,23 @@
 
     @if (isLoggedIn()) {
       <h2>Distribute to DSPs</h2>
-      @if (availableDsps().length > 0) {
+      @if (dspsError()) {
+        <p class="error-msg">{{ dspsError() }}</p>
+        <button type="button" class="btn" (click)="loadDsps()">Retry</button>
+      } @else if (!dspsLoaded()) {
+        <p class="loading">Loading DSPs…</p>
+      } @else if (availableDsps().length > 0) {
         <div class="dsp-pick">
           @for (dsp of availableDsps(); track dsp.id) {
-            <span
+            <button
+              type="button"
               class="dsp-chip"
               [class.selected]="isDspSelected(dsp.id)"
+              [attr.aria-pressed]="isDspSelected(dsp.id)"
               (click)="toggleDsp(dsp.id)"
             >
               {{ dsp.name }}
-            </span>
+            </button>
           }
         </div>
         <button class="btn" [disabled]="selectedDspIds().length === 0 || distributing()" (click)="distribute()">

@@ -2,13 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { Artist, CreateTrackRequest, Track, TrackDetail, TrackFilters } from '../models/track.model';
+import { Artist, CreateTrackRequest, Dsp, Track, TrackDetail, TrackFilters } from '../models/track.model';
 
 @Injectable({ providedIn: 'root' })
 export class TrackService {
   private readonly http = inject(HttpClient);
   private readonly tracksUrl = '/api/tracks';
   private readonly artistsUrl = '/api/artists';
+  private readonly dspsUrl = '/api/dsps';
 
   getTracks(filters: TrackFilters = {}): Observable<Track[]> {
     let params = new HttpParams();
@@ -40,5 +41,9 @@ export class TrackService {
 
   getArtists(): Observable<Artist[]> {
     return this.http.get<Artist[]>(this.artistsUrl);
+  }
+
+  getDsps(): Observable<Dsp[]> {
+    return this.http.get<Dsp[]>(this.dspsUrl);
   }
 }

@@ -4,7 +4,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { TrackService } from '../../services/track.service';
 import { AuthService } from '../../services/auth.service';
-import { TrackDetail } from '../../models/track.model';
+import { Dsp, TrackDetail } from '../../models/track.model';
+import { problemMessage } from '../../utils/problem-details';
 
 @Component({
   selector: 'app-track-detail',
@@ -23,11 +24,10 @@ export class TrackDetailComponent implements OnInit {
 
   // Distribution form state (admin only)
   readonly isLoggedIn = this.auth.isLoggedIn;
-  readonly allDsps = signal<Array<{ id: number; name: string }>>([
-    { id: 1, name: 'Spotify' },
-    { id: 2, name: 'Apple Music' },
-    { id: 3, name: 'YouTube' },
-  ]);
+  // DSP catalogue comes from GET /api/dsps, not hard-coded ids.
+  readonly allDsps = signal<Dsp[]>([]);
+  readonly dspsLoaded = signal(false);
+  readonly dspsError = signal<string | null>(null);
   readonly selectedDspIds = signal<number[]>([]);
   readonly distributing = signal(false);
   readonly distributeMsg = signal<string | null>(null);
@@ -47,6 +47,18 @@ export class TrackDetailComponent implements OnInit {
       return;
     }
     this.loadTrack(id);
+    this.loadDsps();
+  }
+
+  loadDsps(): void {
+    this.dspsError.set(null);
+    this.trackService.getDsps().subscribe({
+      next: dsps => {
+        this.allDsps.set(dsps);
+        this.dspsLoaded.set(true);
+      },
+      error: err => this.dspsError.set(problemMessage(err, "Couldn't load the DSP list.")),
+    });
   }
 
   toggleDsp(id: number): void {
@@ -77,9 +89,9 @@ export class TrackDetailComponent implements OnInit {
         this.distributing.set(false);
         this.distributeMsg.set('Track submitted to the selected DSPs.');
       },
-      error: () => {
+      error: err => {
         this.distributing.set(false);
-        this.distributeErr.set('Distribution failed. The track may already be submitted to one of those DSPs.');
+        this.distributeErr.set(problemMessage(err, 'Distribution failed. Please try again.'));
       },
     });
   }
@@ -93,8 +105,8 @@ export class TrackDetailComponent implements OnInit {
         this.track.set(track);
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set("Couldn't load this track. It may not exist.");
+      error: err => {
+        this.error.set(problemMessage(err, "Couldn't load this track. It may not exist."));
         this.loading.set(false);
       },
     });

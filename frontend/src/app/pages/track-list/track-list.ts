@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { TrackService } from '../../services/track.service';
-import { AuthService } from '../../services/auth.service';
 import { Track, TrackStatus } from '../../models/track.model';
 
 const STATUS_OPTIONS: Array<{ label: string; value: TrackStatus | '' }> = [
@@ -21,9 +20,7 @@ const STATUS_OPTIONS: Array<{ label: string; value: TrackStatus | '' }> = [
 })
 export class TrackListComponent implements OnInit {
   private readonly trackService = inject(TrackService);
-  private readonly auth = inject(AuthService);
 
-  readonly isLoggedIn = this.auth.isLoggedIn;
   readonly tracks = signal<Track[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
