@@ -82,11 +82,65 @@ That file is committed to the repository, so the secret is visible to
 anyone who reads the source on GitHub — exactly the people you don't
 want knowing it.
 
-**What I did about it:** for this hiring task I left the key in place so
-the project runs out of the box (no setup steps for the reviewer), but I
-flagged it clearly in the README — in a real deployment the key must
-come from **User Secrets**, an **environment variable**, or a **secret
-manager**, never from a file that lives in version control. The lesson:
-the AI treated a secret like ordinary configuration, because from the
-code's perspective a key is "just a string." Knowing *where a value
-comes from* matters as much as knowing what it does.
+**What I did about it:** the base `appsettings.json` now ships with an
+empty key and empty admin credentials. A *public demo* key and the
+`admin` / `admin123` account live only in `appsettings.Development.json`
+— still committed, deliberately, so `dotnet run` works out of the box for
+the reviewer; I treat them as known-public test values, not secrets. Any other
+environment must supply `Jwt__Key` / `Auth__*` from environment variables,
+User Secrets or a secret manager. The API validates the options at startup
+and refuses to boot if the key is missing or shorter than 32 bytes, so a
+misconfigured deployment fails loudly instead of silently signing tokens
+with a known key. The lesson: the AI treated a secret like ordinary
+configuration, because from the code's perspective a key is "just a
+string." Knowing *where a value comes from* matters as much as knowing
+what it does.
+
+## 4. Follow-up after review: the Clean Architecture was only skin-deep
+
+After the first technical review I was told the architecture had a
+problem, and I went back to check it properly. The project *references*
+pointed the right way (Api → Infrastructure → Application → Domain), but
+the *contents* did not:
+
+- All use-case logic — ISRC uniqueness, the Draft → Submitted promotion,
+  the duplicate-DSP rule, status changes, DTO mapping, login — lived in
+  `Infrastructure/Services`, talking straight to `AppDbContext`. The
+  Application project only held interfaces, DTOs and validators, so
+  swapping EF Core would have meant rewriting the business behaviour.
+- `Program.cs` reached into Infrastructure's `AppDbContext` and seeder,
+  and duplicated the JWT settings that `AuthService` read by string keys.
+- The controller parsed the `status` filter itself and returned a
+  different error shape than the rest of the API.
+
+What I changed:
+
+- **Domain** now owns the rules: `Track.DistributeTo(...)` and
+  `Track.ChangeStatus(...)` throw a `DomainException` when a rule is broken.
+  `Status` has a private setter and `Distributions` is a read-only view over
+  a private list, so nothing outside the entity can bypass them. A new track
+  always starts as Draft and the status only moves forward
+  (Draft → Submitted → Distributed), never past Draft without a DSP submission.
+- **Application** owns the use cases (`TrackService`, `ArtistService`,
+  `DspService`, `AuthService`) and declares the ports it needs:
+  repositories, `IUnitOfWork`, `IIdentityService`, `IJwtTokenGenerator`.
+  It has no reference to EF Core, ASP.NET Core or JWT libraries.
+- **Infrastructure** only implements those ports (EF repositories, unit
+  of work that turns unique-index races into 409s — only unique/primary-key
+  violations, other constraint failures stay 500 —, JWT generator,
+  credential check, migrations, seeding).
+- **Api** is just the composition root: thin controllers, one
+  `IExceptionHandler` that turns every failure into ProblemDetails,
+  and bearer validation built from the same `JwtSettings` options.
+
+I also fixed a port mismatch (the API listened on 5003 while the Angular
+proxy and README used 5080), tightened the ISRC rule to the real
+12-character format, rejected numeric status strings, added
+`GET /api/dsps` so the UI stops hard-coding DSP ids, and moved the
+service tests onto in-memory SQLite so unique indexes are really
+exercised (53 tests now). The reviewers also caught a real frontend bug:
+an expired token left in `localStorage` crashed the Angular app on
+startup, because the auth service touched its `isLoggedIn` signal before
+the signal existed — fixed and verified in the browser. I used AI (Claude, with Codex and Grok as independent
+reviewers) to help with this refactor, and reviewed and ran every change
+myself.

@@ -20,6 +20,21 @@ first** — the frontend proxies API calls to it.
 | Node.js | 20+ | `node --version` |
 | npm | 10+ | `npm --version` |
 
+### Quickest way — one command (Windows)
+
+From the repo root, double-click **`run.cmd`**, or run:
+
+```powershell
+.un.ps1            # start API + frontend, open the browser
+.un.ps1 -Fresh     # same, but re-create and re-seed the database first
+.un.ps1 -Test      # run the backend tests first
+```
+
+It checks .NET/Node, runs `npm install` the first time, starts the API and waits for it,
+then starts the frontend and opens http://localhost:4200. Close the two windows to stop.
+
+Or do it by hand:
+
 ### Step 1 — Run the backend (API)
 
 ```bash
@@ -30,10 +45,13 @@ dotnet run --project src/MusicDistribution.Api
 
 On first launch it automatically:
 1. Applies EF Core migrations (creates a local `musicdistribution.db`),
-2. Seeds sample data (4 artists, 10 tracks, 3 DSPs, 8 distributions).
+2. Seeds sample data (4 artists, 10 tracks, 3 DSPs, 10 distributions).
 
-The API listens on `https://localhost:7000` and `http://localhost:5080`.
+The API listens on `http://localhost:5080` (use `--launch-profile https` to also get `https://localhost:7000`).
 The frontend talks to port **5080** via a dev proxy.
+
+Interactive API docs (Development only): **http://localhost:5080/scalar/v1** — log in via
+`POST /api/auth/login`, then paste the token into the Bearer auth box.
 
 ### Step 2 — Run the frontend (Angular)
 
@@ -55,15 +73,16 @@ Click **Admin login** in the top bar, or go to `/login`:
 | Username | `admin` |
 | Password | `admin123` |
 
-After logging in you can create tracks, change statuses, and distribute
-tracks to DSPs. Browse (GET) works without login.
+After logging in you can distribute tracks to DSPs from the track detail page.
+Creating artists/tracks and changing a track's status are available through the API
+(Scalar UI or `backend/src/MusicDistribution.Api/MusicDistribution.Api.http`). Browse (GET) works without login.
 
 ### Step 4 — Run the tests (optional)
 
 ```bash
 cd backend
 dotnet test
-# Expected: Passed: 28, Failed: 0
+# Expected: Passed: 53, Failed: 0
 ```
 
 ### Quick troubleshooting
@@ -72,6 +91,9 @@ dotnet test
   isn't on port 5080. Start it first and re-check.
 - **Port already in use:** stop anything on 5080 (backend) or 4200
   (frontend), then retry.
+- **`Jwt:Key must be at least 32 bytes` on startup:** you are not running in
+  `Development` (secrets only live in `appsettings.Development.json`). Use the
+  default launch profile, or set `Jwt__Key`, `Auth__Username`, `Auth__Password` env vars.
 - **Want a fresh database:** delete `backend/src/MusicDistribution.Api/musicdistribution.db*`
   — it re-creates and re-seeds on next launch.
 
@@ -93,7 +115,7 @@ music-distribution/
 |-------------|-------------------------------------------------------------------|
 | Backend     | .NET 10, ASP.NET Core, EF Core (SQLite), FluentValidation, JWT    |
 | Frontend    | Angular 20 (standalone components, signals), TypeScript           |
-| Testing     | xUnit, FluentValidation.TestHelper, WebApplicationFactory (28 tests) |
+| Testing     | xUnit, FluentValidation.TestHelper, WebApplicationFactory, SQLite in-memory (53 tests) |
 
 ## ✨ Features
 
@@ -101,9 +123,9 @@ music-distribution/
 - **Tracks** — list with filters (artistId, genre, status), detail view, create, update status
 - **Distribution** — submit a track to one or more DSPs; tracks a Draft→Submitted→Distributed lifecycle
 - **Auth** — JWT bearer authentication; all write endpoints require an Admin role
-- **Validation** — FluentValidation on every input with RFC 7807 ProblemDetails error responses
-- **Business rules** — unique ISRC, no duplicate DSP submissions, auto-promote Draft→Submitted on distribution
-- **Automated tests** — 28 unit + integration tests covering validators, services, and the HTTP pipeline
+- **Validation** — FluentValidation on every input (body and query string) with RFC 7807 ProblemDetails error responses
+- **Business rules** — on the `Track` entity: new tracks start as Draft, distributing promotes Draft→Submitted, no duplicate DSP submissions, status only moves forward (Draft→Submitted→Distributed) and never past Draft without a DSP submission. Unique ISRC / artist email: application pre-check backed by unique DB indexes (races return 409)
+- **Automated tests** — 53 domain, application, validator and HTTP integration tests
 
 ---
 
@@ -126,25 +148,31 @@ dotnet build
 dotnet run --project src/MusicDistribution.Api
 ```
 
-The API listens on `https://localhost:7000` / `http://localhost:5080` (check console output).
+The API listens on `http://localhost:5080` (profile `https` adds `https://localhost:7000`).
 
-On startup it:
+On startup (any environment except Production) it:
 1. Applies pending EF Core migrations
-2. Seeds reference data (3 DSPs, 4 artists, 10 tracks, 8 distributions)
+2. Seeds sample data (3 DSPs, 4 artists, 10 tracks, 10 distributions)
 
-OpenAPI spec is available in Development at `/openapi/v1.json`.
+In Development the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
 ### Architecture (Clean Architecture)
 
 ```
 src/
-├── MusicDistribution.Domain           ← entities + enums (no dependencies)
-├── MusicDistribution.Application      ← DTOs, interfaces, validators, exceptions
-├── MusicDistribution.Infrastructure   ← EF Core DbContext, services, seeding, migrations
-└── MusicDistribution.Api              ← controllers, middleware, DI wiring, Program.cs
+├── MusicDistribution.Domain           ← entities, enums, business rules (Track.DistributeTo / ChangeStatus), DomainException
+├── MusicDistribution.Application      ← use cases (TrackService, ArtistService, DspService, AuthService),
+│                                        DTOs, validators, mappings, and the ports it needs:
+│                                        IxxxRepository, IUnitOfWork, IIdentityService, IJwtTokenGenerator
+├── MusicDistribution.Infrastructure   ← adapters: EF Core DbContext, configurations, migrations, repositories,
+│                                        UnitOfWork, seeding, JWT generator, credential check
+└── MusicDistribution.Api              ← composition root: controllers (HTTP only), ProblemDetails exception
+                                         handler, JWT bearer validation, CORS, OpenAPI
 ```
 
-Dependency flow: `Domain ← Application ← Infrastructure ← Api`
+Dependency flow: `Api → Infrastructure → Application → Domain` (every arrow points inward).
+Application has **no** reference to EF Core, ASP.NET Core or JWT libraries — it only knows its own
+interfaces, which Infrastructure implements. Controllers only bind the request and pick the status code.
 
 ### API endpoints
 
@@ -152,7 +180,9 @@ Dependency flow: `Domain ← Application ← Infrastructure ← Api`
 |--------|------------------------------|-------|--------------------------------------|
 | POST   | `/api/auth/login`            | —     | Returns a JWT (admin / admin123)     |
 | GET    | `/api/artists`               | —     | List all artists                     |
+| GET    | `/api/artists/{id}`          | —     | Get one artist                       |
 | POST   | `/api/artists`               | Admin | Create an artist                     |
+| GET    | `/api/dsps`                  | —     | List DSPs (used by the distribute UI) |
 | GET    | `/api/tracks`                | —     | List tracks (filters: artistId, genre, status) |
 | GET    | `/api/tracks/{id}`           | —     | Track detail with distributions      |
 | POST   | `/api/tracks`                | Admin | Create a track                       |
@@ -166,7 +196,14 @@ cd backend
 dotnet test
 ```
 
+Errors always come back as `application/problem+json`:
+400 validation (with per-field `errors`), 401 not logged in / bad credentials,
+403 wrong role, 404 not found, 409 conflict / business-rule violation.
+
 ### Migrations
+
+The initial migration is already in `src/MusicDistribution.Infrastructure/Migrations` and is applied
+automatically on startup. To apply it manually or add a new one:
 
 ```bash
 dotnet ef migrations add YourMigrationName \
@@ -199,9 +236,9 @@ The app runs at `http://localhost:4200`. The dev server proxies `/api` requests 
 ### Features
 
 - **Track list** (`/`) — sortable table with status filter buttons (All / Draft / Submitted / Distributed)
-- **Track detail** (`/tracks/:id`) — full metadata + DSP distribution table; admins can distribute to remaining DSPs via clickable chips
+- **Track detail** (`/tracks/:id`) — full metadata + DSP distribution table; admins can distribute to remaining DSPs (loaded from `GET /api/dsps`)
 - **Login** (`/login`) — obtains a JWT stored in localStorage; the nav bar shows an "Admin" badge when authenticated
-- **JWT interceptor** — automatically attaches the bearer token to every `/api/` request
+- **JWT interceptor** — attaches the bearer token to every `/api/` request; an expired token or a 401 logs the user out
 
 ### Default test credentials
 
@@ -215,7 +252,7 @@ The app runs at `http://localhost:4200`. The dev server proxies `/api` requests 
 ## 🔌 Obtaining a JWT (curl)
 
 ```bash
-curl -X POST https://localhost:7000/api/auth/login \
+curl -X POST http://localhost:5080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 ```
@@ -227,7 +264,7 @@ Response:
 
 Use it on protected endpoints:
 ```bash
-curl -X POST https://localhost:7000/api/tracks \
+curl -X POST http://localhost:5080/api/tracks \
   -H "Authorization: Bearer <jwt>" \
   -H "Content-Type: application/json" \
   -d '{"title":"New Track","artistId":1,"isrc":"USRC12345678","releaseDate":"2025-01-01","genre":"Pop"}'
@@ -240,7 +277,13 @@ curl -X POST https://localhost:7000/api/tracks \
 Backend config lives in `backend/src/MusicDistribution.Api/appsettings.json`:
 
 - **ConnectionStrings:DefaultConnection** — SQLite file path (`Data Source=musicdistribution.db`)
-- **Jwt** — signing key, issuer, audience (rotate the key for production!)
-- **Auth** — default admin credentials
+- **Jwt** — issuer, audience, expiry. The signing **key** is empty here.
+- **Auth** — admin credentials, empty here.
+- **Cors:AllowedOrigins** — allowed frontend origins.
 
-> ⚠️ The default JWT key and admin password are for local development only. Use User Secrets or environment variables in production.
+The JWT key and the `admin` / `admin123` account in `appsettings.Development.json` are **public demo
+values for local Development only** — they are committed on purpose so the reviewer can run the app
+with zero setup, and must never be used for a reachable deployment.
+In any other environment provide them as environment variables or User Secrets
+(`Jwt__Key`, `Auth__Username`, `Auth__Password`); the API refuses to start if the key is missing
+or shorter than 32 bytes.
