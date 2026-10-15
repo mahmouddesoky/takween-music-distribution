@@ -8,9 +8,16 @@ by hand.
 
 ## 1. What did AI generate, and what did I write or modify myself?
 
-I used **Z-CODE (powered by GLM-5.2)** as my main AI assistant throughout
-the project. I treated it as a fast, well-read pair programmer — but I
-made the decisions. Concretely:
+I used two AI tools:
+
+- **Z-CODE (powered by GLM-5.2)** as my main assistant for building the
+  project — the first version of the API, the Angular app and the tests.
+- **Claude** later, for the Clean Architecture refactor after the first
+  technical review (with Codex and Grok as independent reviewers — see
+  section 4).
+
+I treated them as fast, well-read pair programmers — but I made the
+decisions. Concretely:
 
 - **What the AI did:** generated the boilerplate — entity classes, EF Core
   configurations, the DbContext, the service classes, the controllers,
